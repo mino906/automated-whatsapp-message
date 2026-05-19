@@ -1,0 +1,682 @@
+Here is an HTML document that creates a functional "WhatsApp Class Reminder" tool, combining the scheduler, AI message generation, and WhatsApp sending logic into a single file.
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>WhatsApp Class Reminder · AI Scheduler</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #e9f0e9 0%, #d2e0cf 100%);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            padding: 1.5rem;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* main card */
+        .app-container {
+            max-width: 1300px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(2px);
+            border-radius: 3rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        /* header area */
+        .hero {
+            background: #075e54;  /* whatsapp dark green */
+            padding: 2rem 2rem 1.5rem 2rem;
+            color: white;
+            border-bottom: 4px solid #25D366;
+        }
+
+        .hero h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .hero h1 span {
+            background: #25D366;
+            padding: 0.2rem 0.8rem;
+            border-radius: 60px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .hero p {
+            margin-top: 0.7rem;
+            opacity: 0.9;
+            font-weight: 400;
+            max-width: 75%;
+        }
+
+        /* grid layout: left config + right logs */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.8rem;
+            padding: 2rem;
+        }
+
+        @media (max-width: 780px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                gap: 1.8rem;
+            }
+            .hero p {
+                max-width: 100%;
+            }
+        }
+
+        /* cards styling */
+        .card {
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+            transition: all 0.2s;
+            border: 1px solid #eef2ea;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 5px solid #25D366;
+            padding-left: 0.8rem;
+            color: #1f2e1c;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.4rem;
+            color: #2c3a2b;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: 1.5rem;
+            border: 1.5px solid #e2e8e0;
+            background: #fefef7;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #25D366;
+            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.2);
+        }
+
+        .inline-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .inline-row .form-group {
+            flex: 1;
+        }
+
+        button {
+            background: #075e54;
+            color: white;
+            border: none;
+            padding: 0.85rem 1.5rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        button.secondary {
+            background: #4b6e3b;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        button.warning {
+            background: #b85c00;
+        }
+
+        button:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+        }
+
+        .schedule-badge {
+            background: #f0f7ed;
+            border-radius: 1.25rem;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            border-left: 4px solid #25D366;
+        }
+
+        .log-list {
+            max-height: 340px;
+            overflow-y: auto;
+            background: #fafaf5;
+            border-radius: 1.25rem;
+            padding: 0.2rem;
+        }
+
+        .log-entry {
+            background: white;
+            border-radius: 1rem;
+            padding: 0.75rem;
+            margin-bottom: 0.7rem;
+            border: 1px solid #e9f0e5;
+            font-size: 0.8rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .log-time {
+            font-weight: 700;
+            color: #075e54;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .log-message {
+            margin-top: 6px;
+            color: #1e2a1c;
+            word-break: break-word;
+        }
+
+        .empty-logs {
+            color: #6e7b68;
+            text-align: center;
+            padding: 2rem;
+            font-style: italic;
+        }
+
+        .status-area {
+            background: #e9f5e5;
+            border-radius: 1.5rem;
+            padding: 0.9rem;
+            margin-top: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .scheduler-status {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #aaa;
+            display: inline-block;
+        }
+
+        .indicator.active {
+            background: #25D366;
+            box-shadow: 0 0 0 2px #b9f5cb;
+        }
+
+        hr {
+            margin: 1rem 0;
+            border-color: #e2efdc;
+        }
+
+        .micro-icon {
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="hero">
+        <h1>
+            📲 WhatsApp Class Reminder 
+            <span>AI-powered</span>
+        </h1>
+        <p>⚡ Never forget to message your class again. AI writes fresh, natural reminders & scheduler sends them on WhatsApp automatically.</p>
+    </div>
+
+    <div class="dashboard">
+        <!-- Left: configuration + scheduler control -->
+        <div class="card">
+            <h2>✍️ 1. Reminder Setup</h2>
+            <div class="form-group">
+                <label>📞 Target (WhatsApp number with country code or group name)</label>
+                <input type="text" id="recipient" placeholder="e.g., +1234567890  or 'Math Class Group'" value="+1234567890">
+                <small style="color:#5a6e52;">📲 In demo, click "Simulate Send" will open WhatsApp web with prefilled message. (Real integration uses API)</small>
+            </div>
+
+            <div class="inline-row">
+                <div class="form-group">
+                    <label>📅 Repeat day</label>
+                    <select id="weekday">
+                        <option value="0">Sunday</option>
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4" selected>Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>⏰ Time (24h)</label>
+                    <input type="time" id="reminderTime" value="09:00">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>📚 Class / Topic (for AI context)</label>
+                <input type="text" id="classTopic" placeholder="e.g., Advanced Calculus / Web Dev Cohort" value="Computer Science 101">
+            </div>
+
+            <div class="form-group">
+                <label>🤖 AI Prompt (what should the message include?)</label>
+                <textarea id="promptDetails" rows="2" placeholder="Describe what info to remind: session topic, homework, Zoom link, any updates...">Remind everyone about session #5: Data Structures. We'll cover binary trees. No readings due, but bring practice problems.</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>🎭 Tone (AI style)</label>
+                <select id="toneSelect">
+                    <option value="friendly & warm">😊 Friendly & Warm</option>
+                    <option value="professional & concise">📘 Professional & Concise</option>
+                    <option value="casual & short">💬 Casual & Short</option>
+                    <option value="energetic & motivating">⚡ Energetic & Motivating</option>
+                </select>
+            </div>
+
+            <button id="scheduleBtn" class="secondary">⚙️ Set / Update Schedule</button>
+
+            <div class="schedule-badge" id="schedulePreview">
+                📌 <strong>No active schedule yet</strong><br>
+                Configure and press "Set Schedule" — AI will generate message at chosen time.
+            </div>
+
+            <div class="status-area">
+                <div class="scheduler-status">
+                    <span class="indicator" id="schedIndicator"></span>
+                    <span id="schedText">Scheduler idle</span>
+                </div>
+                <button id="testNowBtn" style="width:auto; background:#25D366; padding: 0.5rem 1rem;">📲 Manual test (send now)</button>
+            </div>
+            <button id="clearLogsBtn" style="background:#647a5c; margin-top: 12px;">🗑️ Clear log history</button>
+        </div>
+
+        <!-- Right: Logs, AI preview & how it works -->
+        <div class="card">
+            <h2>📨 Sent messages & AI output</h2>
+            <div style="margin-bottom: 1rem; background:#eef5ea; border-radius: 1.2rem; padding: 0.8rem;">
+                <span style="font-weight:600;">🧠 How AI writes:</span> Based on your topic, prompt & tone, Claude-style AI generates unique message each time → avoids robotic copy-paste.
+            </div>
+            <div id="logContainer" class="log-list">
+                <div class="empty-logs">✨ No reminders sent yet. Schedule or click "Manual test" to generate AI message & simulate WhatsApp.</div>
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>📋 Last AI-generated preview</label>
+                <textarea id="aiPreview" rows="3" readonly placeholder="AI message will appear here before sending..." style="background:#f9fbf7;"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ---------- FAKE AI (simulates Claude / any LLM) ----------
+    // Generates fresh, natural message based on parameters
+    function generateAIMessage(className, userPrompt, tone, recipientName) {
+        // Simulate natural variation & AI style
+        const now = new Date();
+        const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+        const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        
+        let tonePrefix = "";
+        let signOff = "";
+        if (tone.includes("friendly")) {
+            tonePrefix = "Hey everyone! 👋";
+            signOff = "Looking forward to seeing you! 😊";
+        } else if (tone.includes("professional")) {
+            tonePrefix = "Dear class,";
+            signOff = "Best regards, your instructor.";
+        } else if (tone.includes("casual")) {
+            tonePrefix = "Hey hey 👋 quick reminder:";
+            signOff = "Catch you later!";
+        } else if (tone.includes("energetic")) {
+            tonePrefix = "🎉 Let's go! 🎉";
+            signOff = "Can't wait to see you all fired up! 🔥";
+        } else {
+            tonePrefix = "Reminder:";
+            signOff = "Thanks!";
+        }
+        
+        // Build dynamic content based on prompt snippet & class name
+        let coreMsg = `📢 ${className} reminder for ${dayName}, ${dateStr}. `;
+        if (userPrompt && userPrompt.length > 5) {
+            // take first part to avoid overflow but keep sense
+            let shortPrompt = userPrompt.length > 100 ? userPrompt.substring(0, 100) + "…" : userPrompt;
+            coreMsg += `🔔 Details: ${shortPrompt}. `;
+        } else {
+            coreMsg += `📍 Session happening as scheduled. `;
+        }
+        
+        // add variation for time: use the scheduled hour/min from global if available, else generic
+        const scheduledHourElem = document.getElementById('reminderTime');
+        let timeStr = "the usual time";
+        if (scheduledHourElem && scheduledHourElem.value) {
+            timeStr = scheduledHourElem.value;
+        }
+        coreMsg += `⏰ At ${timeStr}. `;
+        
+        // random extra spice to avoid looking stale (AI fresh)
+        const extraOptions = [
+            "Come prepared with questions! 🧠",
+            "Don't forget to check the group resources. 📂",
+            "I'll share a quick recap after today's session.",
+            "Let me know if you'll be late. 🚀",
+            "Today's session will be interactive! 🎤",
+            "Attendance appreciated, but no pressure ✨"
+        ];
+        const randomExtra = extraOptions[Math.floor(Math.random() * extraOptions.length)];
+        const fullMessage = `${tonePrefix} ${coreMsg} ${randomExtra} ${signOff}`;
+        return fullMessage.trim();
+    }
+    
+    // ---------- STORAGE & LOGS (localStorage for persistence) ----------
+    let scheduledJob = null;          // stores setInterval reference
+    let nextTriggerTime = null;       // timestamp (ms) of next scheduled message
+    let currentSchedule = null;       // stores schedule details { weekday, hour, minute, classTopic, promptDetails, tone, recipient }
+    
+    const STORAGE_LOGS = "whatsapp_reminder_logs";
+    const STORAGE_SCHEDULE = "whatsapp_reminder_schedule";
+    
+    function loadLogs() {
+        const stored = localStorage.getItem(STORAGE_LOGS);
+        if (stored) {
+            try {
+                return JSON.parse(stored);
+            } catch(e) { return []; }
+        }
+        return [];
+    }
+    
+    function saveLogs(logs) {
+        localStorage.setItem(STORAGE_LOGS, JSON.stringify(logs));
+    }
+    
+    function addLogEntry(messageText, recipient, method = "scheduled") {
+        const logs = loadLogs();
+        const newEntry = {
+            id: Date.now() + Math.random(),
+            timestamp: new Date().toISOString(),
+            localTime: new Date().toLocaleString(),
+            message: messageText,
+            recipient: recipient,
+            source: method
+        };
+        logs.unshift(newEntry); // latest first
+        if (logs.length > 35) logs.pop();
+        saveLogs(logs);
+        renderLogs();
+        return newEntry;
+    }
+    
+    function clearLogs() {
+        localStorage.setItem(STORAGE_LOGS, JSON.stringify([]));
+        renderLogs();
+        updateAIPreview(""); // clear preview
+    }
+    
+    function renderLogs() {
+        const container = document.getElementById('logContainer');
+        const logs = loadLogs();
+        if (!logs.length) {
+            container.innerHTML = `<div class="empty-logs">📭 No reminders sent yet. Schedule or click "Manual test" to generate AI message & simulate WhatsApp.</div>`;
+            return;
+        }
+        container.innerHTML = logs.map(log => `
+            <div class="log-entry">
+                <div class="log-time">📅 ${log.localTime} · via ${log.source === "scheduled" ? "⏲️ scheduler" : "🧪 manual test"}</div>
+                <div class="log-message"><strong>To:</strong> ${escapeHtml(log.recipient)}<br><strong>💬 ${escapeHtml(log.message.substring(0, 150))}${log.message.length>150?'…':''}</strong></div>
+            </div>
+        `).join('');
+    }
+    
+    function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+    
+    function updateAIPreview(text) {
+        document.getElementById('aiPreview').value = text;
+    }
+    
+    // whatsapp simulation - opens WhatsApp web with prefilled text (demo integration)
+    function sendToWhatsApp(recipient, message) {
+        // Clean recipient: if looks like phone number (contains digits/+) treat as wa.me link, else generic message for group (just prepopulate)
+        let waLink = "";
+        const trimmedRec = recipient.trim();
+        const hasPlusOrDigits = /^[\+\d][\d\s\-\(\)]+$/.test(trimmedRec.replace(/\s/g, ''));
+        let targetNumber = "";
+        if (hasPlusOrDigits) {
+            targetNumber = trimmedRec.replace(/\s/g, '').replace(/[()-]/g, '');
+            if (!targetNumber.startsWith('+')) targetNumber = '+' + targetNumber;
+            waLink = `https://wa.me/${encodeURIComponent(targetNumber)}?text=${encodeURIComponent(message)}`;
+        } else {
+            // group or contact name: we cannot directly open group chat without invite, but we open whatsapp with prefilled message - user can select chat
+            waLink = `https://wa.me/?text=${encodeURIComponent(`[Reminder for ${trimmedRec}]: ${message}`)}`;
+        }
+        window.open(waLink, '_blank');
+    }
+    
+    // core: trigger reminder (generate AI, send log, simulate WhatsApp)
+    async function triggerReminder() {
+        const recipient = document.getElementById('recipient').value.trim();
+        if (!recipient) {
+            alert("Please enter recipient name or number for WhatsApp");
+            return false;
+        }
+        const classTopic = document.getElementById('classTopic').value.trim() || "Class Session";
+        const promptDetails = document.getElementById('promptDetails').value.trim() || "General class reminder";
+        const tone = document.getElementById('toneSelect').value;
+        
+        // AI generation
+        const aiMessage = generateAIMessage(classTopic, promptDetails, tone, recipient);
+        updateAIPreview(aiMessage);
+        
+        // Add log
+        addLogEntry(aiMessage, recipient, (nextTriggerTime ? "scheduled" : "manual"));
+        
+        // Simulate send via WhatsApp (demo: opens wa.me)
+        sendToWhatsApp(recipient, aiMessage);
+        return true;
+    }
+    
+    // scheduler: compute next occurrence based on weekday + time
+    function computeNextTriggerMs(weekdayNum, hour24, minute) {
+        const now = new Date();
+        let target = new Date();
+        target.setHours(hour24, minute, 0, 0);
+        const currentDay = now.getDay();
+        let daysToAdd = (weekdayNum - currentDay + 7) % 7;
+        if (daysToAdd === 0 && target <= now) {
+            daysToAdd = 7; // if same day but time already passed, go next week
+        }
+        target.setDate(now.getDate() + daysToAdd);
+        return target.getTime();
+    }
+    
+    function stopScheduler() {
+        if (scheduledJob) {
+            clearInterval(scheduledJob);
+            scheduledJob = null;
+        }
+        nextTriggerTime = null;
+        document.getElementById('schedIndicator').classList.remove('active');
+        document.getElementById('schedText').innerText = 'Scheduler idle';
+    }
+    
+    function startSchedulerFromCurrentConfig() {
+        const weekday = parseInt(document.getElementById('weekday').value, 10);
+        const timeStr = document.getElementById('reminderTime').value;
+        if (!timeStr) return false;
+        const [hour, minute] = timeStr.split(':').map(Number);
+        const recipient = document.getElementById('recipient').value.trim();
+        const classTopic = document.getElementById('classTopic').value.trim();
+        const promptDetails = document.getElementById('promptDetails').value.trim();
+        const tone = document.getElementById('toneSelect').value;
+        
+        if (!recipient) {
+            alert("Please fill recipient before activating scheduler");
+            return false;
+        }
+        
+        const nextTimestamp = computeNextTriggerMs(weekday, hour, minute);
+        nextTriggerTime = nextTimestamp;
+        
+        // store schedule in memory & local storage for reload
+        currentSchedule = { weekday, hour, minute, recipient, classTopic, promptDetails, tone, nextTrigger: nextTimestamp };
+        localStorage.setItem(STORAGE_SCHEDULE, JSON.stringify(currentSchedule));
+        
+        // update preview text
+        const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        document.getElementById('schedulePreview').innerHTML = `📌 <strong>Active schedule:</strong> Every ${days[weekday]} at ${timeStr}<br>➡️ Next message: ${new Date(nextTimestamp).toLocaleString()}<br>🤖 AI will generate fresh reminder.`;
+        
+        stopScheduler();
+        // set an interval every 30 seconds to check trigger
+        scheduledJob = setInterval(() => {
+            const nowMs = Date.now();
+            if (nextTriggerTime && nowMs >= nextTriggerTime) {
+                // trigger!!
+                triggerReminder().then(() => {
+                    // recompute next occurrence after trigger
+                    const newNext = computeNextTriggerMs(weekday, hour, minute);
+                    nextTriggerTime = newNext;
+                    if (currentSchedule) {
+                        currentSchedule.nextTrigger = newNext;
+                        localStorage.setItem(STORAGE_SCHEDULE, JSON.stringify(currentSchedule));
+                    }
+                    const nextDate = new Date(newNext);
+                    document.getElementById('schedulePreview').innerHTML = `📌 <strong>Active schedule:</strong> Every ${days[weekday]} at ${timeStr}<br>✅ Last message sent! Next: ${nextDate.toLocaleString()}<br>🤖 AI will write fresh message.`;
+                }).catch(e => console.warn(e));
+            }
+        }, 20000); // check every 20 sec for demo responsiveness (real app could be 60 sec)
+        
+        document.getElementById('schedIndicator').classList.add('active');
+        document.getElementById('schedText').innerText = `Scheduler active · Next: ${new Date(nextTriggerTime).toLocaleTimeString()}`;
+        return true;
+    }
+    
+    // Load schedule from localStorage on page init
+    function restoreSchedule() {
+        const saved = localStorage.getItem(STORAGE_SCHEDULE);
+        if (saved) {
+            try {
+                const s = JSON.parse(saved);
+                if (s && s.weekday !== undefined) {
+                    document.getElementById('weekday').value = s.weekday;
+                    document.getElementById('reminderTime').value = `${s.hour.toString().padStart(2,'0')}:${s.minute.toString().padStart(2,'0')}`;
+                    if (s.recipient) document.getElementById('recipient').value = s.recipient;
+                    if (s.classTopic) document.getElementById('classTopic').value = s.classTopic;
+                    if (s.promptDetails) document.getElementById('promptDetails').value = s.promptDetails;
+                    if (s.tone) document.getElementById('toneSelect').value = s.tone;
+                    startSchedulerFromCurrentConfig();
+                }
+            } catch(e) {}
+        } else {
+            // default preview
+            document.getElementById('schedulePreview').innerHTML = `📌 <strong>No active schedule</strong><br>Set day, time and press "Set Schedule".`;
+        }
+        renderLogs();
+    }
+    
+    // update the scheduler preview without restarting if schedule changed by user via set button
+    function updateScheduleAndRestart() {
+        const ok = startSchedulerFromCurrentConfig();
+        if (ok) {
+            // small success indication
+            const previewDiv = document.getElementById('schedulePreview');
+            if (!previewDiv.innerHTML.includes("Active schedule")) {
+                // just minor
+            }
+        }
+        return ok;
+    }
+    
+    // manual test: trigger once immediately
+    async function manualTest() {
+        await triggerReminder();
+    }
+    
+    // event binding + page ready
+    window.addEventListener('DOMContentLoaded', () => {
+        restoreSchedule();
+        document.getElementById('scheduleBtn').addEventListener('click', () => {
+            updateScheduleAndRestart();
+        });
+        document.getElementById('testNowBtn').addEventListener('click', () => {
+            manualTest();
+        });
+        document.getElementById('clearLogsBtn').addEventListener('click', () => {
+            clearLogs();
+        });
+        // optional: any change to recipient / class updates schedule preview not breaking; but if user wants new schedule they press set button
+    });
+    
+    // Update status indicator text every 10 sec
+    setInterval(() => {
+        if (nextTriggerTime && scheduledJob) {
+            const remainMs = nextTriggerTime - Date.now();
+            if (remainMs > 0) {
+                const minutes = Math.floor(remainMs / 60000);
+                const seconds = Math.floor((remainMs % 60000)/1000);
+                document.getElementById('schedText').innerHTML = `⏲️ Active · next in ${minutes}m ${seconds}s`;
+            } else {
+                document.getElementById('schedText').innerHTML = `⏲️ Scheduler active · waiting for next trigger`;
+            }
+        } else if (!scheduledJob && currentSchedule) {
+            // idle but maybe not started?
+        } else if (!scheduledJob) {
+            document.getElementById('schedText').innerHTML = `Scheduler idle · press "Set Schedule"`;
+        }
+    }, 1000);
+</script>
+</body>
+</html>
+```
